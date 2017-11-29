@@ -39,7 +39,7 @@ namespace FilkoKartya
                             string s2 = Console.ReadLine();
                             int i2;
                             bool b2 = int.TryParse(s2, out i2);
-                            if (!b2 || i2 != 4 || i2 != 6)
+                            if (!b2 || (i2 != 4 && i2 != 6))
                             {
                                 i2 = 4;
                             }
