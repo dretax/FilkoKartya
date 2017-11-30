@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 
 namespace FilkoKartya
@@ -71,7 +73,7 @@ namespace FilkoKartya
         /// <summary>
         /// Vége van a játéknak?
         /// </summary>
-        internal bool Match = false;
+        internal bool Match;
 
         /// <summary>
         /// Pakliban lévő tényleges kártyák.
@@ -137,73 +139,100 @@ namespace FilkoKartya
         /// A Game osztály konstruktora. Az alap információk itt leszen kiírva
         /// a változók itt lesznek deklarálva, és a játékot magát is innen irányítjuk.
         /// </summary>
-        internal Game(int players, int to = 0, int to2 = 0, int adupos = -1, int adupos2 = -1, int placer = -1)
+        internal Game(int players, int to = 0, int to2 = 0, int adupos = -1, int adupos2 = -1, int placer = -1, int nextp = 2, List<Cards> CardsOnBoard = null,
+            Dictionary<int, List<Cards>> PlayerCards = null)
         {
+            Match = false;
             FirstAceorAduPos = adupos;
             LastAceorAduPos = adupos2;
             LastAceorAduPosPlacer = placer;
             TeamOnePoints = to;
             TeamTwoPoints = to2;
             Players = players;
-            NextPlayer = 2;
-            CardsOnBoard = new List<Cards>();
-            PlayerCards = new Dictionary<int, List<Cards>>();
+            NextPlayer = nextp;
+            bool loaded = false;
+            if (CardsOnBoard == null)
+            {
+                this.CardsOnBoard = new List<Cards>();
+            }
+            else
+            {
+                this.CardsOnBoard = CardsOnBoard;
+                loaded = true;
+            }
+            if (PlayerCards == null)
+            {
+                this.PlayerCards = new Dictionary<int, List<Cards>>();
+            }
+            else
+            {
+                this.PlayerCards = PlayerCards;
+            }
             CardsList = new List<Cards>();
             r = new Random();
-            RandomCards();
-            Console.WriteLine();
-            Console.WriteLine();
-            Console.WriteLine("Pakli keverése megtörtént. Összesen " + CardsList.Count + "db kártya.");
-            int id = 1;
-            var currentcard = CardsList[CardsList.Count - id];
-            while (currentcard.ToString().Contains("Adu"))
+            if (!loaded)
             {
-                id++;
-                currentcard = CardsList[CardsList.Count - id];
-            }
-
-            Console.WriteLine("Adu kártya: " + currentcard);
-
-
-            AduKartya = currentcard;
-            AduSzine = GetCardColor(AduKartya);
-            Console.WriteLine("Adu Kártya Színe: " + AduSzine);
-
-            int iterations = Players * 2;
-            if (Players == 6)
-            {
-                iterations = Players;
-            }
-            for (int i = 1; i <= iterations; i++)
-            {
-                if (Players == 4)
+                RandomCards();
+                Console.WriteLine();
+                Console.WriteLine();
+                Console.WriteLine("Pakli keverése megtörtént. Összesen " + CardsList.Count + "db kártya.");
+                int id = 1;
+                var currentcard = CardsList[CardsList.Count - id];
+                while (currentcard.ToString().Contains("Adu"))
                 {
-                    if (i < 5)
-                    {
-                        PlayerCards[i] = new List<Cards>();
-                    }
-                    int adder = i;
-                    if (i > 4)
-                    {
-                        adder = adder - 4;
-                    }
-                    for (int j2 = 0; j2 < 4; j2++) // Osztunk 4 lapot.
-                    {
-                        PlayerCards[adder].Add(CardsList[CardsList.Count - 1]);
-                        CardsList.RemoveAt(CardsList.Count - 1);
-                    }
+                    id++;
+                    currentcard = CardsList[CardsList.Count - id];
                 }
-                else
+
+                Console.WriteLine("Adu kártya: " + currentcard);
+
+
+                AduKartya = currentcard;
+                AduSzine = GetCardColor(AduKartya);
+                Console.WriteLine("Adu Kártya Színe: " + AduSzine);
+
+                int iterations = Players*2;
+                if (Players == 6)
                 {
-                    PlayerCards[i] = new List<Cards>();
-                    for (int j2 = 0; j2 < 5; j2++)
+                    iterations = Players;
+                }
+                for (int i = 1; i <= iterations; i++)
+                {
+                    if (Players == 4)
                     {
-                        PlayerCards[i].Add(CardsList[CardsList.Count - 1]);
-                        CardsList.RemoveAt(CardsList.Count - 1);
+                        if (i < 5)
+                        {
+                            this.PlayerCards[i] = new List<Cards>();
+                        }
+                        int adder = i;
+                        if (i > 4)
+                        {
+                            adder = adder - 4;
+                        }
+                        for (int j2 = 0; j2 < 4; j2++) // Osztunk 4 lapot.
+                        {
+                            this.PlayerCards[adder].Add(CardsList[CardsList.Count - 1]);
+                            CardsList.RemoveAt(CardsList.Count - 1);
+                        }
+                    }
+                    else
+                    {
+                        this.PlayerCards[i] = new List<Cards>();
+                        for (int j2 = 0; j2 < 5; j2++)
+                        {
+                            this.PlayerCards[i].Add(CardsList[CardsList.Count - 1]);
+                            CardsList.RemoveAt(CardsList.Count - 1);
+                        }
                     }
                 }
             }
             PrintPlayerCards(1);
+            if (loaded)
+            {
+                Console.WriteLine();
+                Console.WriteLine("==================================================================");
+                Console.WriteLine("Utolsó kártya az asztalon: " + CardsOnBoard[CardsOnBoard.Count - 1]);
+            }
             Console.WriteLine();
             Console.WriteLine();
             Console.WriteLine();
@@ -211,9 +240,24 @@ namespace FilkoKartya
             {
                 ContinueMatch();
             }
-            //TODO: Játék végének kezelése, illetve mentés/betöltés.
-            Console.WriteLine("Vége");
-            
+            Console.WriteLine("=== Vége ===");
+            Console.WriteLine("Első csapat pontszáma: " + TeamOnePoints);
+            Console.WriteLine("Második csapat pontszáma: " + TeamTwoPoints);
+            string s = "Senki";
+            if ((TeamOnePoints >= 6 && Players == 4) || (TeamOnePoints >= 4 && Players == 6))
+            {
+                s = "Első csapat";
+            }
+            if ((TeamTwoPoints >= 6 && Players == 4) || (TeamTwoPoints >= 4 && Players == 6))
+            {
+                s = "Második csapat";
+            }
+            Console.WriteLine("Nyertes: " + s);
+            Console.WriteLine();
+            Console.WriteLine("Menübe lépéshez nyomjon meg egy gombot.");
+            Console.ReadKey();
+            Console.Clear();
+            Program.CreateNewMenu();
         }
 
         /// <summary>
@@ -502,7 +546,6 @@ namespace FilkoKartya
                     }
                     var lastcardonboard = CardsOnBoard[CardsOnBoard.Count - 1];
                     Cards matchingcard = GetPlayerMatchingColorCard(NextPlayer, lastcardonboard); // Keresünk egy egyező színűt, vagy adut.
-                    //todo Csináljuk meg, hogy a gép ne feltétlen akarjon letenni ászt, illetve elsőleg letett ászért ne járjon pont.
                     if (matchingcard != Cards.NincsLap && GetCardValue(lastcardonboard) != 8)
                     {
                         Console.WriteLine(NextPlayer + " számú gép letett egy kártyát. (" +
@@ -527,8 +570,13 @@ namespace FilkoKartya
                         {
                             if (LastAceorAduPosPlacer != -1)
                             {
-                                int calc = LastAceorAduPos - FirstAceorAduPos + 1;
-                                GivePoints(NextPlayer, calc);
+                                int calc = 0;
+                                for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                                {
+                                    calc++;
+                                }
+
+                                GivePoints(LastAceorAduPosPlacer, calc);
                                 FirstAceorAduPos = -1;
                                 LastAceorAduPos = -1;
                                 LastAceorAduPosPlacer = -1;
@@ -583,8 +631,12 @@ namespace FilkoKartya
                                 {
                                     if (LastAceorAduPosPlacer != -1)
                                     {
-                                        int calc = LastAceorAduPos - FirstAceorAduPos + 1;
-                                        GivePoints(NextPlayer, calc);
+                                        int calc = 0;
+                                        for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                                        {
+                                            calc++;
+                                        }
+                                        GivePoints(LastAceorAduPosPlacer, calc);
                                         FirstAceorAduPos = -1;
                                         LastAceorAduPos = -1;
                                         LastAceorAduPosPlacer = -1;
@@ -614,12 +666,70 @@ namespace FilkoKartya
             }
         }
 
+        /// <summary>
+        /// A játékos lépését ez a method kezeli le.
+        /// Nem engedi szabályt szegni, és hasonlók, továbbá itt kezeljük a
+        /// feladást illetve a mentést is.
+        /// </summary>
         internal void VerifyCardPlacement()
         {
             Console.WriteLine();
             Console.WriteLine();
             PrintPlayerCards(1);
             string s = Console.ReadLine();
+            if (s == "feladas")
+            {
+                Console.WriteLine("Feladtad a játékot..");
+                Thread.Sleep(1500);
+                Program.CreateNewMenu();
+                return;
+            }
+            if (s == "mentes")
+            {
+                Console.WriteLine("Írj be egy filenevet.");
+                string filenev = Console.ReadLine();
+                while (string.IsNullOrEmpty(filenev) || File.Exists(filenev + ".ini"))
+                {
+                    Console.WriteLine("Írj be egy filenevet mert ez vagy hibás, vagy már létezik.");
+                    filenev = Console.ReadLine();
+                }
+                File.Create(filenev + ".ini").Dispose();
+                IniParser ini = new IniParser(filenev + ".ini");
+                ini.AddSetting("GameState", "FirstAceorAduPos", FirstAceorAduPos.ToString());
+                ini.AddSetting("GameState", "LastAceorAduPos", LastAceorAduPos.ToString());
+                ini.AddSetting("GameState", "LastAceorAduPosPlacer", LastAceorAduPosPlacer.ToString());
+                ini.AddSetting("GameState", "TeamOnePoints", TeamOnePoints.ToString());
+                ini.AddSetting("GameState", "TeamTwoPoints", TeamTwoPoints.ToString());
+                ini.AddSetting("GameState", "Players", Players.ToString());
+                ini.AddSetting("GameState", "NextPlayer", NextPlayer.ToString());
+                string cd = "";
+                foreach (var x in CardsOnBoard)
+                {
+                    cd = cd + ((int) x) + ",";
+                }
+                ini.AddSetting("Cards", "CardsOnBoard", cd);
+                /*string cd2 = "";
+                foreach (var x in CardsList)
+                {
+                    cd2 = cd2 + ((int)x) + ",";
+                }
+                ini.AddSetting("Cards", "CardsList", cd2);*/
+
+                foreach (var x in PlayerCards.Keys)
+                {
+                    string playercards = "";
+                    foreach (var x2 in PlayerCards[x])
+                    {
+                        playercards = playercards + ((int)x2) + ",";
+                    }
+                    ini.AddSetting("PlayerCards", x.ToString(), playercards);
+                }
+                ini.Save();
+                Console.WriteLine("Játék mentésre került.");
+                VerifyCardPlacement();
+                return;
+            }
+
             Cards ReceivedCard = HasSpecificMatchingCard(1, s);
             while (ReceivedCard == Cards.NincsLap)
             {
@@ -632,7 +742,7 @@ namespace FilkoKartya
             var lastcardonboard = CardsOnBoard[CardsOnBoard.Count - 1];
             Colors color = GetCardColor(lastcardonboard);
             Colors color2 = GetCardColor(ReceivedCard);
-            if (color != color2)
+            if (color != color2 && (GetCardValue(lastcardonboard) != 8 || GetCardValue(ReceivedCard) != 8))
             {
                 Cards cd = GetPlayerMatchingColorCard(1, lastcardonboard);
                 if (cd != Cards.NincsLap && GetCardValue(lastcardonboard) != 8) // Ha a játékos nem megyegyező színt akar letenni középre, de van nála egyező szín.
@@ -642,12 +752,12 @@ namespace FilkoKartya
                     return;
                 }
             }
-            if (GetCardValue(lastcardonboard) == 8 && GetCardValue(ReceivedCard) != 8 && GetPlayerMatchingAduCardOnly(1) != Cards.NincsLap)
+            /*if (GetCardValue(lastcardonboard) == 8 && GetCardValue(ReceivedCard) != 8 && GetPlayerMatchingAduCardOnly(1) != Cards.NincsLap)
             {
                 Console.WriteLine("Adu kártyára csak Adu kártyát tehetsz, kivéve akkor ha nincs adu kártyád! (Felső típusú kártyák)");
                 VerifyCardPlacement();
                 return;
-            }
+            }*/
             if (GetCardValue(ReceivedCard) == 7 || GetCardValue(ReceivedCard) == 8)
             {
                 if (FirstAceorAduPos == -1)
@@ -666,8 +776,12 @@ namespace FilkoKartya
             {
                 if (LastAceorAduPosPlacer != -1)
                 {
-                    int calc = LastAceorAduPos - FirstAceorAduPos + 1;
-                    GivePoints(NextPlayer, calc);
+                    int calc = 0;
+                    for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                    {
+                        calc++;
+                    }
+                    GivePoints(LastAceorAduPosPlacer, calc);
                     FirstAceorAduPos = -1;
                     LastAceorAduPos = -1;
                     LastAceorAduPosPlacer = -1;

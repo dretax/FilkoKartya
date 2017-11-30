@@ -30,6 +30,9 @@ namespace FilkoKartya
             MHandler.Watcher();
         }
 
+        /// <summary>
+        /// Menü újratöltése
+        /// </summary>
         internal static void CreateNewMenu()
         {
             MHandler = new Menu();
