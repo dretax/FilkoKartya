@@ -86,6 +86,11 @@ namespace FilkoKartya
         internal List<Cards> CardsOnBoard;
 
         /// <summary>
+        /// Eddig letett meg nem nyert ászok, illetve tizesek
+        /// </summary>
+        internal List<Cards> PlacedTensorAces; 
+
+        /// <summary>
         /// Következő játékos aki a kártyát fogja lehelyezni.
         /// </summary>
         internal int NextPlayer;
@@ -121,33 +126,40 @@ namespace FilkoKartya
         internal int TeamTwoPoints = 0;
 
         /// <summary>
-        /// Első bezáratlan megszerzendő kártya pozíciója.
-        /// </summary>
-        internal int FirstAceorAduPos;
-
-        /// <summary>
-        /// Utolsó letett ász vagy adu helye
-        /// </summary>
-        internal int LastAceorAduPos;
-
-        /// <summary>
         /// Aki az utolsó ászt vagy adut tette le
         /// </summary>
-        internal int LastAceorAduPosPlacer;
+        internal int LastAceorTenPlacer;
+
+        /// <summary>
+        /// Utolsó adu kártya letevője.
+        /// </summary>
+        internal int LastAduPosPlacer;
+
+        /// <summary>
+        /// Első csapat által lehyelezett adu kártyák száma
+        /// </summary>
+        internal int PlacedAdusTeamOne = 0;
+
+        /// <summary>
+        /// Második csapat által lehelyezett adu kártyák száma
+        /// </summary>
+        internal int PlacedAdusTeamTwo = 0;
 
         /// <summary>
         /// A Game osztály konstruktora. Az alap információk itt leszen kiírva
         /// a változók itt lesznek deklarálva, és a játékot magát is innen irányítjuk.
         /// </summary>
-        internal Game(int players, int to = 0, int to2 = 0, int adupos = -1, int adupos2 = -1, int placer = -1, int nextp = 2, List<Cards> CardsOnBoard = null,
-            Dictionary<int, List<Cards>> PlayerCards = null)
+        internal Game(int players, int to = 0, int to2 = 0, int aduplacer = -1, int placer = -1, int nextp = 2, int placed1 = 0, int placed2 = 0, List<Cards> CardsOnBoard = null,
+            Dictionary<int, List<Cards>> PlayerCards = null, List<Cards> PlacedTensorAces = null)
         {
             Match = false;
-            FirstAceorAduPos = adupos;
-            LastAceorAduPos = adupos2;
-            LastAceorAduPosPlacer = placer;
+            LastAduPosPlacer = aduplacer;
+            LastAceorTenPlacer = placer;
             TeamOnePoints = to;
             TeamTwoPoints = to2;
+            PlacedAdusTeamOne = placed1;
+            PlacedAdusTeamTwo = placed2;
+
             Players = players;
             NextPlayer = nextp;
             bool loaded = false;
@@ -167,6 +179,14 @@ namespace FilkoKartya
             else
             {
                 this.PlayerCards = PlayerCards;
+            }
+            if (PlacedTensorAces == null)
+            {
+                this.PlacedTensorAces = new List<Cards>();
+            }
+            else
+            {
+                this.PlacedTensorAces = PlacedTensorAces;
             }
             CardsList = new List<Cards>();
             r = new Random();
@@ -552,34 +572,42 @@ namespace FilkoKartya
                                           matchingcard + ")");
                         CardsOnBoard.Add(matchingcard);
                         PlayerCards[NextPlayer].Remove(matchingcard);
-                        if (GetCardValue(matchingcard) == 7)
+                        if (GetCardValue(matchingcard) == 7 || GetCardValue(matchingcard) == 6) // Ha 10-es vagy ász
                         {
-                            if (FirstAceorAduPos == -1)
-                            {
-                                FirstAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPosPlacer = NextPlayer;
-                            }
-                            else
-                            {
-                                LastAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPosPlacer = NextPlayer;
-                            }
+                            PlacedTensorAces.Add(matchingcard);
+                            LastAceorTenPlacer = NextPlayer;
                         }
                         else
                         {
-                            if (LastAceorAduPosPlacer != -1)
+                            if (LastAceorTenPlacer != -1) // Ha valaki tett már le ászt, vagy 10-est
                             {
-                                int calc = 0;
-                                for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                                if (GetCardValue(matchingcard) == 8) // Ha ütőkártyát tesznek akkor adjuk hozzá az eddigi letett ütőkártyák számához
                                 {
-                                    calc++;
+                                    LastAduPosPlacer = NextPlayer;
+                                    int team = GetPlayerTeam(NextPlayer);
+                                    if (team == 1)
+                                    {
+                                        PlacedAdusTeamOne++;
+                                    }
+                                    else
+                                    {
+                                        PlacedAdusTeamTwo++;
+                                    }
                                 }
-
-                                GivePoints(LastAceorAduPosPlacer, calc);
-                                FirstAceorAduPos = -1;
-                                LastAceorAduPos = -1;
-                                LastAceorAduPosPlacer = -1;
+                                else
+                                {
+                                    if (LastAduPosPlacer != -1) // Ha van adu letételünk
+                                    {
+                                        int team = GetPlayerTeam(LastAduPosPlacer);
+                                        if (GetOppositeTeamCards(team) < GetTeamCards(team)) // Több ütőkártyánk van letéve mint az ellenfélnek?
+                                        {
+                                            GivePoints(LastAduPosPlacer, PlacedTensorAces.Count);
+                                            PlacedTensorAces.Clear();
+                                            LastAduPosPlacer = -1;
+                                            LastAceorTenPlacer = -1;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -592,16 +620,15 @@ namespace FilkoKartya
                                           adukartya + ")");
                             CardsOnBoard.Add(adukartya);
                             PlayerCards[NextPlayer].Remove(adukartya);
-                            if (FirstAceorAduPos == -1)
+                            LastAduPosPlacer = NextPlayer;
+                            int team = GetPlayerTeam(NextPlayer);
+                            if (team == 1)
                             {
-                                FirstAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPosPlacer = NextPlayer;
+                                PlacedAdusTeamOne++;
                             }
                             else
                             {
-                                LastAceorAduPos = CardsOnBoard.Count;
-                                LastAceorAduPosPlacer = NextPlayer;
+                                PlacedAdusTeamTwo++;
                             }
                         }
                         else
@@ -613,33 +640,44 @@ namespace FilkoKartya
                                                   randomcard + ")");
                                 CardsOnBoard.Add(randomcard);
                                 PlayerCards[NextPlayer].Remove(randomcard);
-                                if (GetCardValue(matchingcard) == 7)
+                                if (GetCardValue(matchingcard) == 7 || GetCardValue(matchingcard) == 6) // Ha 10-es vagy ász
                                 {
-                                    if (FirstAceorAduPos == -1)
-                                    {
-                                        FirstAceorAduPos = CardsOnBoard.Count;
-                                        LastAceorAduPos = CardsOnBoard.Count;
-                                        LastAceorAduPosPlacer = NextPlayer;
-                                    }
-                                    else
-                                    {
-                                        LastAceorAduPos = CardsOnBoard.Count;
-                                        LastAceorAduPosPlacer = NextPlayer;
-                                    }
+                                    PlacedTensorAces.Add(matchingcard);
+                                    LastAceorTenPlacer = NextPlayer;
                                 }
                                 else
                                 {
-                                    if (LastAceorAduPosPlacer != -1)
+                                    if (LastAceorTenPlacer != -1) // Ha valaki tett már le ászt, vagy 10-est
                                     {
-                                        int calc = 0;
-                                        for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                                        if (GetCardValue(matchingcard) == 8) // Ha ütőkártyát tesznek akkor adjuk hozzá az eddigi letett ütőkártyák számához
                                         {
-                                            calc++;
+                                            LastAduPosPlacer = NextPlayer;
+                                            int team = GetPlayerTeam(NextPlayer);
+                                            if (team == 1)
+                                            {
+                                                PlacedAdusTeamOne++;
+                                            }
+                                            else
+                                            {
+                                                PlacedAdusTeamTwo++;
+                                            }
                                         }
-                                        GivePoints(LastAceorAduPosPlacer, calc);
-                                        FirstAceorAduPos = -1;
-                                        LastAceorAduPos = -1;
-                                        LastAceorAduPosPlacer = -1;
+                                        else
+                                        {
+                                            if (LastAduPosPlacer != -1) // Ha van adu letételünk
+                                            {
+                                                int team = GetPlayerTeam(LastAduPosPlacer);
+                                                if (GetOppositeTeamCards(team) < GetTeamCards(team)) // Több ütőkártyánk van letéve mint az ellenfélnek?
+                                                {
+                                                    GivePoints(LastAduPosPlacer, PlacedTensorAces.Count);
+                                                    PlacedTensorAces.Clear();
+                                                    LastAduPosPlacer = -1;
+                                                    LastAceorTenPlacer = -1;
+                                                    PlacedAdusTeamOne = 0;
+                                                    PlacedAdusTeamTwo = 0;
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -695,9 +733,10 @@ namespace FilkoKartya
                 }
                 File.Create(filenev + ".ini").Dispose();
                 IniParser ini = new IniParser(filenev + ".ini");
-                ini.AddSetting("GameState", "FirstAceorAduPos", FirstAceorAduPos.ToString());
-                ini.AddSetting("GameState", "LastAceorAduPos", LastAceorAduPos.ToString());
-                ini.AddSetting("GameState", "LastAceorAduPosPlacer", LastAceorAduPosPlacer.ToString());
+                ini.AddSetting("GameState", "PlacedAdusTeamOne", PlacedAdusTeamOne.ToString());
+                ini.AddSetting("GameState", "PlacedAdusTeamTwo", PlacedAdusTeamTwo.ToString());
+                ini.AddSetting("GameState", "LastAceorTenPlacer", LastAceorTenPlacer.ToString());
+                ini.AddSetting("GameState", "LastAduPosPlacer", LastAduPosPlacer.ToString());
                 ini.AddSetting("GameState", "TeamOnePoints", TeamOnePoints.ToString());
                 ini.AddSetting("GameState", "TeamTwoPoints", TeamTwoPoints.ToString());
                 ini.AddSetting("GameState", "Players", Players.ToString());
@@ -708,6 +747,14 @@ namespace FilkoKartya
                     cd = cd + ((int) x) + ",";
                 }
                 ini.AddSetting("Cards", "CardsOnBoard", cd);
+
+                string cd2 = "";
+                foreach (var x in PlacedTensorAces)
+                {
+                    cd2 = cd2 + ((int)x) + ",";
+                }
+                ini.AddSetting("Cards", "PlacedTensorAces", cd2);
+                
                 /*string cd2 = "";
                 foreach (var x in CardsList)
                 {
@@ -742,7 +789,7 @@ namespace FilkoKartya
             var lastcardonboard = CardsOnBoard[CardsOnBoard.Count - 1];
             Colors color = GetCardColor(lastcardonboard);
             Colors color2 = GetCardColor(ReceivedCard);
-            if (color != color2 && (GetCardValue(lastcardonboard) != 8 || GetCardValue(ReceivedCard) != 8))
+            if (color != color2 && (GetCardValue(lastcardonboard) != 8 || GetCardValue(ReceivedCard) != 8) && ((GetCardValue(lastcardonboard) == 7 || GetCardValue(lastcardonboard) == 6) && GetCardValue(ReceivedCard) != 8))
             {
                 Cards cd = GetPlayerMatchingColorCard(1, lastcardonboard);
                 if (cd != Cards.NincsLap && GetCardValue(lastcardonboard) != 8) // Ha a játékos nem megyegyező színt akar letenni középre, de van nála egyező szín.
@@ -758,33 +805,44 @@ namespace FilkoKartya
                 VerifyCardPlacement();
                 return;
             }*/
-            if (GetCardValue(ReceivedCard) == 7 || GetCardValue(ReceivedCard) == 8)
+            if (GetCardValue(ReceivedCard) == 7 || GetCardValue(ReceivedCard) == 6) // Ha 10-es vagy ász
             {
-                if (FirstAceorAduPos == -1)
-                {
-                    FirstAceorAduPos = CardsOnBoard.Count;
-                    LastAceorAduPos = CardsOnBoard.Count;
-                    LastAceorAduPosPlacer = NextPlayer;
-                }
-                else
-                {
-                    LastAceorAduPos = CardsOnBoard.Count;
-                    LastAceorAduPosPlacer = NextPlayer;
-                }
+                PlacedTensorAces.Add(ReceivedCard);
+                LastAceorTenPlacer = NextPlayer;
             }
             else
             {
-                if (LastAceorAduPosPlacer != -1)
+                if (LastAceorTenPlacer != -1) // Ha valaki tett már le ászt, vagy 10-est
                 {
-                    int calc = 0;
-                    for (int jk = FirstAceorAduPos; jk <= LastAceorAduPos; jk++)
+                    if (GetCardValue(ReceivedCard) == 8) // Ha ütőkártyát tesznek akkor adjuk hozzá az eddigi letett ütőkártyák számához
                     {
-                        calc++;
+                        LastAduPosPlacer = NextPlayer;
+                        int team = GetPlayerTeam(NextPlayer);
+                        if (team == 1)
+                        {
+                            PlacedAdusTeamOne++;
+                        }
+                        else
+                        {
+                            PlacedAdusTeamTwo++;
+                        }
                     }
-                    GivePoints(LastAceorAduPosPlacer, calc);
-                    FirstAceorAduPos = -1;
-                    LastAceorAduPos = -1;
-                    LastAceorAduPosPlacer = -1;
+                    else
+                    {
+                        if (LastAduPosPlacer != -1) // Ha van adu letételünk
+                        {
+                            int team = GetPlayerTeam(LastAduPosPlacer);
+                            if (GetOppositeTeamCards(team) < GetTeamCards(team)) // Több ütőkártyánk van letéve mint az ellenfélnek?
+                            {
+                                GivePoints(LastAduPosPlacer, PlacedTensorAces.Count);
+                                PlacedTensorAces.Clear();
+                                LastAduPosPlacer = -1;
+                                LastAceorTenPlacer = -1;
+                                PlacedAdusTeamOne = 0;
+                                PlacedAdusTeamTwo = 0;
+                            }
+                        }
+                    }
                 }
             }
 
@@ -876,6 +934,41 @@ namespace FilkoKartya
                     Console.WriteLine("Az 1. csapat megszerzett " + cardamount + " kártyát. Összes pontjuk: " + TeamOnePoints);
                 }
             }
+        }
+
+        internal int GetPlayerTeam(int player)
+        {
+            if (Players == 4)
+            {
+                if (player > 2)
+                {
+                    return 2;
+                }
+                return 1;
+            }
+            if (player > 3)
+            {
+                return 2;
+            }
+            return 1;
+        }
+
+        internal int GetTeamCards(int team)
+        {
+            if (team == 1)
+            {
+                return PlacedAdusTeamOne;
+            }
+            return PlacedAdusTeamTwo;
+        }
+
+        internal int GetOppositeTeamCards(int team)
+        {
+            if (team == 1)
+            {
+                return PlacedAdusTeamTwo;
+            }
+            return PlacedAdusTeamOne;
         }
     }
 }

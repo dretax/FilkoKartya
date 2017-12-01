@@ -64,14 +64,16 @@ namespace FilkoKartya
                                 filenev = Console.ReadLine();
                             }
                             IniParser ini = new IniParser(filenev + ".ini");
-                            int FirstAceorAduPos = int.Parse(ini.GetSetting("GameState", "FirstAceorAduPos"));
-                            int LastAceorAduPos = int.Parse(ini.GetSetting("GameState", "LastAceorAduPos"));
-                            int LastAceorAduPosPlacer = int.Parse(ini.GetSetting("GameState", "LastAceorAduPosPlacer"));
+                            int PlacedAdusTeamOne = int.Parse(ini.GetSetting("GameState", "PlacedAdusTeamOne"));
+                            int PlacedAdusTeamTwo = int.Parse(ini.GetSetting("GameState", "PlacedAdusTeamTwo"));
+                            int LastAduPosPlacer = int.Parse(ini.GetSetting("GameState", "LastAduPosPlacer"));
+                            int LastAceorTenPlacer = int.Parse(ini.GetSetting("GameState", "LastAceorTenPlacer"));
                             int TeamOnePoints = int.Parse(ini.GetSetting("GameState", "TeamOnePoints"));
                             int TeamTwoPoints = int.Parse(ini.GetSetting("GameState", "TeamTwoPoints"));
                             int Players = int.Parse(ini.GetSetting("GameState", "Players"));
                             int NextPlayer = int.Parse(ini.GetSetting("GameState", "NextPlayer"));
                             string[] list = ini.GetSetting("Cards", "CardsOnBoard").Split(',');
+                            string[] list3 = ini.GetSetting("Cards", "PlacedTensorAces").Split(',');
 
                             // LINQ: List<Game.Cards> CardsOnBoard = (from x in list where !string.IsNullOrEmpty(x) select int.Parse(x) into cardnum select (Game.Cards) cardnum).ToList();
                             List<Game.Cards> CardsOnBoard = new List<Game.Cards>();
@@ -83,6 +85,18 @@ namespace FilkoKartya
                                     CardsOnBoard.Add((Game.Cards) cardnum);
                                 }
                             }
+
+                            // LINQ: List<Game.Cards> PlacedAcesorTens = (from x in list3 where !string.IsNullOrEmpty(x) select int.Parse(x) into cardnum select (Game.Cards) cardnum).ToList();
+                            List<Game.Cards> PlacedAcesorTens = new List<Game.Cards>();
+                            foreach (var x in list3)
+                            {
+                                if (!string.IsNullOrEmpty(x))
+                                {
+                                    int cardnum = int.Parse(x);
+                                    PlacedAcesorTens.Add((Game.Cards)cardnum);
+                                }
+                            }
+
 
                             Dictionary<int, List<Game.Cards>> PlayerCards = new Dictionary<int, List<Game.Cards>>();
 
@@ -103,7 +117,7 @@ namespace FilkoKartya
                             }
                             Console.WriteLine("Mentés beolvasása sikeres. Betöltés....");
                             Thread.Sleep(2000);
-                            _game = new Game(Players, TeamOnePoints, TeamTwoPoints, FirstAceorAduPos, LastAceorAduPos, LastAceorAduPosPlacer, NextPlayer, CardsOnBoard, PlayerCards);
+                            _game = new Game(Players, TeamOnePoints, TeamTwoPoints, LastAduPosPlacer, LastAceorTenPlacer, NextPlayer, PlacedAdusTeamOne, PlacedAdusTeamTwo, CardsOnBoard, PlayerCards, PlacedAcesorTens);
                             break;
                         }
 

@@ -274,7 +274,6 @@ namespace FilkoKartya
         /// <summary>
         /// A tárolt hashtableben struktúrát alkalmazok az egyszerűbb tárolás érdekében
         /// </summary>
-        [StructLayout(LayoutKind.Sequential)]
         private struct SectionPair
         {
             public string Section;
