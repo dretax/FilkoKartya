@@ -18,13 +18,6 @@ namespace FilkoKartya
         {
             
             Console.WriteLine("Üdvözöllek a Filkó Kártya játékban!");
-            //TopListPath = Directory.GetCurrentDirectory() + "\\TopList.txt";
-            /*if (!File.Exists(TopListPath))
-            {
-                File.Create(TopListPath).Dispose();
-            }*/
-            //TopListIni = new Database(TopListPath);
-            //TopListIni.ReadFile();
             MHandler = new Menu();
             MHandler.Watcher();
         }
