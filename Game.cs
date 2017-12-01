@@ -565,8 +565,8 @@ namespace FilkoKartya
                         return;
                     }
                     var lastcardonboard = CardsOnBoard[CardsOnBoard.Count - 1];
-                    Cards matchingcard = GetPlayerMatchingColorCard(NextPlayer, lastcardonboard); // Keresünk egy egyező színűt, vagy adut.
-                    if (matchingcard != Cards.NincsLap && GetCardValue(lastcardonboard) != 8)
+                    Cards matchingcard = GetPlayerMatchingColorCard(NextPlayer, lastcardonboard); // Keresünk egy egyező színűt.
+                    if (matchingcard != Cards.NincsLap && (PlacedTensorAces.Count == 0)) // Ha van egyező színünk, és nem tettek le ászt, illetve tizest, akkor nyugodtan tegyen színt.
                     {
                         Console.WriteLine(NextPlayer + " számú gép letett egy kártyát. (" +
                                           matchingcard + ")");
@@ -614,7 +614,7 @@ namespace FilkoKartya
                     else
                     {
                         Cards adukartya = GetPlayerMatchingAduCardOnly(NextPlayer);
-                        if (adukartya != Cards.NincsLap)
+                        if (adukartya != Cards.NincsLap) // Ha van adu kártyája és tettek már le tizest vagy ászt, akkor tegyünk le adut.
                         {
                             Console.WriteLine(NextPlayer + " számú gép letett egy kártyát. (" +
                                           adukartya + ")");
